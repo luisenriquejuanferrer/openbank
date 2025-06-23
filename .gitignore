@@ -1,0 +1,49 @@
+# Compilados de Java
+*.class
+
+# Archivos de logs
+*.log
+
+# Maven
+/target/
+/pom.xml.tag
+/pom.xml.releaseBackup
+/pom.xml.versionsBackup
+/logging.properties
+
+# IntelliJ IDEA
+.idea/
+/*.iml
+*.iws
+*.ipr
+out/
+
+# Configuración de OS
+.DS_Store
+Thumbs.db
+
+# Archivos de entorno
+.env
+.env.*
+
+# Archivos temporales
+*.swp
+*.bak
+*.tmp
+
+# Lombok cache
+.lombok/
+
+# Base de datos en memoria o archivos
+*.h2.db
+*.mv.db
+
+# Node (por si agregas frontend luego)
+node_modules/
+dist/
+
+# Spring Boot DevTools
+.spring-boot-devtools.properties
+
+# Archivos de autenticación local
+*.keystore
