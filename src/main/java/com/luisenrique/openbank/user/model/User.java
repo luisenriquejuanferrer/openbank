@@ -20,6 +20,9 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
+    private String dni;
+
     private String name;
 
     @Column(unique = true)
@@ -28,18 +31,17 @@ public class User implements UserDetails {
     private String password;
 
     @Enumerated(EnumType.STRING)
-    private Role role; // Enum que definiremos ahora (ADMIN, USER, etc.)
+    private Role role;
 
-    // Métodos obligatorios de UserDetails
-
+    // Métodos requeridos por Spring Security
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(role); // rol como permiso
+        return List.of(role); // Devuelve el rol como autoridad
     }
 
     @Override
     public String getUsername() {
-        return email;
+        return dni; // Spring Security usará el DNI como "username"
     }
 
     @Override
