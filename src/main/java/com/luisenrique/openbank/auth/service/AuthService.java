@@ -28,6 +28,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
+                .dni(request.getDni())
                 .build();
 
         userRepository.save(user);
@@ -37,10 +38,10 @@ public class AuthService {
     }
 
     public AuthResponse login(AuthRequest request) {
-        var authToken = new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword());
+        var authToken = new UsernamePasswordAuthenticationToken(request.getDni(), request.getPassword());
         authManager.authenticate(authToken);
 
-        var user = userRepository.findByEmail(request.getEmail())
+        var user = userRepository.findByDni(request.getDni())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         String jwtToken = jwtService.generateToken(user);
