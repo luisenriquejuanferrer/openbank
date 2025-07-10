@@ -18,6 +18,9 @@
 *.ipr
 out/
 
+# Configuración de Spring Boot
+application.properties
+
 # Configuración de OS
 .DS_Store
 Thumbs.db
