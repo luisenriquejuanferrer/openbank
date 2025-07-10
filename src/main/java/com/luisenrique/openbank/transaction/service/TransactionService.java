@@ -6,9 +6,8 @@ import com.luisenrique.openbank.transaction.model.Transaction;
 import com.luisenrique.openbank.transaction.model.TransactionType;
 import com.luisenrique.openbank.transaction.repository.TransactionRepository;
 import com.luisenrique.openbank.user.model.User;
-import com.luisenrique.openbank.user.repository.UserRepository;
+import com.luisenrique.openbank.user.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -20,14 +19,15 @@ public class TransactionService {
 
     private final BankAccountRepository accountRepo;
     private final TransactionRepository transactionRepo;
-    private final UserRepository userRepo; // necesario para guardar quién hizo la operación
+    private final UserService userService;
 
     public void deposit(Long accountId, Double amount) {
-        BankAccount account = accountRepo.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Cuenta no encontrada"));
+        if (amount <= 0) throw new IllegalArgumentException("El monto debe ser positivo");
 
-        User currentUser = getAuthenticatedUser();
-        if (!account.getOwner().getId().equals(currentUser.getId())) {
+        BankAccount account = accountRepo.findById(accountId).orElseThrow(() -> new RuntimeException("Cuenta no encontrada"));
+        User user = userService.getAuthenticatedUser();
+
+        if (!account.getOwner().getId().equals(user.getId())) {
             throw new RuntimeException("No puedes depositar en cuentas que no son tuyas");
         }
 
@@ -41,21 +41,23 @@ public class TransactionService {
                 .toAccount(account)
                 .user(account.getOwner()) // o puedes pasar el ID por parámetro
                 .build();
+
         transactionRepo.save(tx);
     }
 
     public void withdraw(Long accountId, Double amount) {
-        BankAccount account = accountRepo.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Cuenta no encontrada"));
+        if (amount <= 0) throw new IllegalArgumentException("El monto debe ser positivo");
 
-        User currentUser = getAuthenticatedUser();
-        if (!account.getOwner().getId().equals(currentUser.getId())) {
+        BankAccount account = accountRepo.findById(accountId).orElseThrow(() -> new RuntimeException("Cuenta no encontrada"));
+        User user = userService.getAuthenticatedUser();
+
+        if (!account.getOwner().getId().equals(user.getId())) {
             throw new RuntimeException("No puedes retirar de cuentas que no son tuyas");
         }
 
-        // Esto habrá que hacerlo desde el servidor
-        if (account.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0)
+        if (account.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0) {
             throw new RuntimeException("Fondos insuficientes");
+        }
 
         account.setBalance(account.getBalance().subtract(BigDecimal.valueOf(amount)));
         accountRepo.save(account);
@@ -67,24 +69,33 @@ public class TransactionService {
                 .fromAccount(account)
                 .user(account.getOwner())
                 .build();
+
         transactionRepo.save(tx);
     }
 
     public void transfer(Long fromAccountId, Long toAccountId, Double amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("El monto debe ser positivo");
+        }
+
+        if (fromAccountId.equals(toAccountId)) {
+            throw new RuntimeException("No puedes transferir a la misma cuenta");
+        }
+
         BankAccount fromAccount = accountRepo.findById(fromAccountId)
                 .orElseThrow(() -> new RuntimeException("Cuenta origen no encontrada"));
 
-        BankAccount toAccount = accountRepo.findById(toAccountId)
-                .orElseThrow(() -> new RuntimeException("Cuenta destino no encontrada"));
+        BankAccount toAccount = accountRepo.findById(toAccountId).orElseThrow(() -> new RuntimeException("Cuenta destino no encontrada"));
 
-        User currentUser = getAuthenticatedUser();
-        if (!fromAccount.getOwner().getId().equals(currentUser.getId())) {
+        User user = userService.getAuthenticatedUser();
+
+        if (!fromAccount.getOwner().getId().equals(user.getId())) {
             throw new RuntimeException("No puedes transferir desde una cuenta que no es tuya");
         }
 
-        // Esto también habrá que hacerlo desde el servidor
-        if (fromAccount.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0)
+        if (fromAccount.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0) {
             throw new RuntimeException("Fondos insuficientes");
+        }
 
         fromAccount.setBalance(fromAccount.getBalance().subtract(BigDecimal.valueOf(amount)));
         toAccount.setBalance(toAccount.getBalance().add(BigDecimal.valueOf(amount)));
@@ -100,12 +111,7 @@ public class TransactionService {
                 .toAccount(toAccount)
                 .user(fromAccount.getOwner())
                 .build();
-        transactionRepo.save(tx);
-    }
 
-    private User getAuthenticatedUser() {
-        String dni = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepo.findByDni(dni)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        transactionRepo.save(tx);
     }
 }
