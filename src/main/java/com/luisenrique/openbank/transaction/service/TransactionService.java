@@ -7,6 +7,7 @@ import com.luisenrique.openbank.transaction.model.TransactionType;
 import com.luisenrique.openbank.transaction.repository.TransactionRepository;
 import com.luisenrique.openbank.user.model.User;
 import com.luisenrique.openbank.user.service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,8 +22,11 @@ public class TransactionService {
     private final TransactionRepository transactionRepo;
     private final UserService userService;
 
-    public void deposit(Long accountId, Double amount) {
-        if (amount <= 0) throw new IllegalArgumentException("El monto debe ser positivo");
+    @Transactional
+    public void deposit(Long accountId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser positivo");
+        }
 
         BankAccount account = accountRepo.findById(accountId).orElseThrow(() -> new RuntimeException("Cuenta no encontrada"));
         User user = userService.getAuthenticatedUser();
@@ -31,7 +35,7 @@ public class TransactionService {
             throw new RuntimeException("No puedes depositar en cuentas que no son tuyas");
         }
 
-        account.setBalance(account.getBalance().add(BigDecimal.valueOf(amount)));
+        account.setBalance(account.getBalance().add(amount));
         accountRepo.save(account);
 
         Transaction tx = Transaction.builder()
@@ -39,14 +43,17 @@ public class TransactionService {
                 .timestamp(LocalDateTime.now())
                 .type(TransactionType.DEPOSIT)
                 .toAccount(account)
-                .user(account.getOwner()) // o puedes pasar el ID por parámetro
+                .user(account.getOwner())
                 .build();
 
         transactionRepo.save(tx);
     }
 
-    public void withdraw(Long accountId, Double amount) {
-        if (amount <= 0) throw new IllegalArgumentException("El monto debe ser positivo");
+    @Transactional
+    public void withdraw(Long accountId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser positivo");
+        }
 
         BankAccount account = accountRepo.findById(accountId).orElseThrow(() -> new RuntimeException("Cuenta no encontrada"));
         User user = userService.getAuthenticatedUser();
@@ -55,11 +62,11 @@ public class TransactionService {
             throw new RuntimeException("No puedes retirar de cuentas que no son tuyas");
         }
 
-        if (account.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0) {
+        if (account.getBalance().compareTo(amount) < 0) {
             throw new RuntimeException("Fondos insuficientes");
         }
 
-        account.setBalance(account.getBalance().subtract(BigDecimal.valueOf(amount)));
+        account.setBalance(account.getBalance().subtract(amount));
         accountRepo.save(account);
 
         Transaction tx = Transaction.builder()
@@ -73,8 +80,9 @@ public class TransactionService {
         transactionRepo.save(tx);
     }
 
-    public void transfer(Long fromAccountId, Long toAccountId, Double amount) {
-        if (amount <= 0) {
+    @Transactional
+    public void transfer(Long fromAccountId, Long toAccountId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("El monto debe ser positivo");
         }
 
@@ -93,12 +101,12 @@ public class TransactionService {
             throw new RuntimeException("No puedes transferir desde una cuenta que no es tuya");
         }
 
-        if (fromAccount.getBalance().compareTo(BigDecimal.valueOf(amount)) < 0) {
+        if (fromAccount.getBalance().compareTo(amount) < 0) {
             throw new RuntimeException("Fondos insuficientes");
         }
 
-        fromAccount.setBalance(fromAccount.getBalance().subtract(BigDecimal.valueOf(amount)));
-        toAccount.setBalance(toAccount.getBalance().add(BigDecimal.valueOf(amount)));
+        fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
+        toAccount.setBalance(toAccount.getBalance().add(amount));
 
         accountRepo.save(fromAccount);
         accountRepo.save(toAccount);
